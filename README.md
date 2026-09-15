@@ -48,6 +48,13 @@ Pack 1/2). Daraus abgeleitet:
 
 Falls eine dieser Annahmen nicht stimmt, in `js/ess.js` (`buildEssSeries`) anpassen.
 
+**Mitternachts-Überlauf**: Ein `Day[...]`-Fenster muss nicht um 00:00:00 beginnen
+(z.B. `Day[2026-09-13 02_00_00]` läuft von 02:00 an diesem Tag bis ca. 01:59 am
+nächsten). `parseEssCsv` erkennt, wenn die `Time`-Spalte innerhalb der Datei über
+Mitternacht zurückspringt (Sprung von > 5 Minuten rückwärts), und zählt das Datum ab
+da hoch — sonst würden späte Zeilen (z.B. `01:41`) mit dem Datum des Dateinamens ein
+zu frühes Datum bekommen und beim Sortieren vor den eigentlichen Tagesanfang rutschen.
+
 Die Spalten (`SOC`, `PackV`, `PackA`, `PacOut`, das `[PC]:Tmax/...`-Feld) werden pro
 Datei anhand der eigenen Kopfzeile gesucht, nicht über feste Positionen — verschiedene
 Exporte/Standorte hatten in der Praxis bereits leicht unterschiedliche Spaltenanzahlen

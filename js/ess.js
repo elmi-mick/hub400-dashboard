@@ -42,6 +42,16 @@ function parseEssCsv(text, fallbackDate) {
   const col = resolveEssColumns(headerFields);
   if (!col || col.SOC === -1 || col.PACK_V === -1 || col.PACK_A === -1) return null;
 
+  // A file's "Day[...]" window doesn't have to start at 00:00:00 (e.g.
+  // "Day[2026-09-13 02_00_00]" runs 02:00 that day through ~01:59 the next
+  // day). All rows share the filename's date, so once the Time-of-day wraps
+  // past midnight it needs to roll onto the following calendar day - or the
+  // late rows (e.g. "01:41") get dated *earlier* than the file's actual
+  // start and sort to the front of the chart.
+  const baseMidnight = new Date(`${fallbackDate}T00:00:00`).getTime();
+  let dayOffset = 0;
+  let prevSecOfDay = -1;
+
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
@@ -50,7 +60,13 @@ function parseEssCsv(text, fallbackDate) {
     if (f.length < headerFields.length - 2) continue; // tolerate a trailing blank field
     const time = f[col.TIME];
     if (!time) continue;
-    const ts = new Date(`${fallbackDate}T${time}`);
+    const timeParts = time.split(":").map(Number);
+    if (timeParts.length !== 3 || timeParts.some(Number.isNaN)) continue;
+    const secOfDay = timeParts[0] * 3600 + timeParts[1] * 60 + timeParts[2];
+    if (prevSecOfDay !== -1 && secOfDay < prevSecOfDay - 300) dayOffset++; // rolled past midnight
+    prevSecOfDay = secOfDay;
+
+    const ts = new Date(baseMidnight + dayOffset * 86400000 + secOfDay * 1000);
     if (isNaN(ts.getTime())) continue;
 
     const bms = f[col.BMS_IDX];
